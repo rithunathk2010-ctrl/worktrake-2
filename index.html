@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Assignment Tracker Pro++</title>
+
+<style>
+body{
+    font-family:Arial;
+    margin:0;
+    padding:0;
+    background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+    color:white;
+}
+
+/* container animation */
+.container{
+    max-width:900px;
+    margin:30px auto;
+    padding:20px;
+    animation:fadeIn 1s ease;
+}
+
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(20px);}
+to{opacity:1; transform:translateY(0);}
+}
+
+.card{
+    background:rgba(255,255,255,0.1);
+    padding:15px;
+    border-radius:12px;
+    margin-bottom:15px;
+    backdrop-filter:blur(10px);
+}
+
+input,select,button{
+    padding:10px;
+    margin:5px;
+    border-radius:8px;
+    border:none;
+}
+
+button{
+    cursor:pointer;
+    transition:0.2s;
+}
+
+button:hover{
+    transform:scale(1.05);
+}
+
+.assignment{
+    background:rgba(255,255,255,0.12);
+    padding:12px;
+    margin:10px 0;
+    border-radius:10px;
+    animation:pop 0.3s ease;
+}
+
+@keyframes pop{
+from{transform:scale(0.9); opacity:0;}
+to{transform:scale(1); opacity:1;}
+}
+
+.badge{
+    display:inline-block;
+    padding:5px 10px;
+    border-radius:20px;
+    font-size:12px;
+}
+
+.high{background:red;}
+.medium{background:orange;}
+.low{background:green;}
+
+.overdue{color:#ff4d4d;}
+.today{color:#ffd700;}
+.tomorrow{color:#00e6e6;}
+
+/* XP BAR */
+.xpbar{
+    width:100%;
+    height:14px;
+    background:rgba(255,255,255,0.2);
+    border-radius:10px;
+    overflow:hidden;
+    margin-top:8px;
+}
+
+.xpfill{
+    height:100%;
+    width:0%;
+    background:lime;
+    transition:0.5s;
+}
+
+/* 🔥 GLOW EFFECT (NEW) */
+.glow{
+    box-shadow:0 0 15px lime, 0 0 25px lime;
+    animation:pulse 1s infinite alternate;
+}
+
+@keyframes pulse{
+from{box-shadow:0 0 10px lime;}
+to{box-shadow:0 0 25px lime;}
+}
+
+/* XP TEXT */
+#xp{
+    font-size:18px;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<!-- PROFILE -->
+<div class="card">
+<h2 id="name">🎮 Player</h2>
+<h3 id="rank">Rank: Bronze I</h3>
+<p>XP: <span id="xp">0</span></p>
+
+<div class="xpbar">
+<div class="xpfill" id="xpfill"></div>
+</div>
+</div>
+
+<!-- INPUT -->
+<div class="card">
+<input id="task" placeholder="Assignment">
+<input id="date" type="date">
+
+<select id="priority">
+<option value="low">Low</option>
+<option value="medium">Medium</option>
+<option value="high">High</option>
+</select>
+
+<button onclick="addTask()">Add</button>
+</div>
+
+<!-- LIST -->
+<div id="list"></div>
+
+</div>
+
+<script>
+
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+let xp = parseInt(localStorage.getItem("xp")) || 0;
+
+function save(){
+localStorage.setItem("tasks",JSON.stringify(tasks));
+localStorage.setItem("xp",xp);
+updateUI();
+}
+
+/* ---------- RANK SYSTEM ---------- */
+function getRank(xp){
+if(xp>=22000) return "Grandmaster";
+if(xp>=16000) return "Heroic";
+if(xp>=12000) return "Diamond II";
+if(xp>=9000) return "Diamond I";
+if(xp>=7000) return "Platinum III";
+if(xp>=5500) return "Platinum II";
+if(xp>=4000) return "Platinum I";
+if(xp>=3000) return "Gold III";
+if(xp>=2300) return "Gold II";
+if(xp>=1700) return "Gold I";
+if(xp>=1200) return "Silver III";
+if(xp>=800) return "Silver II";
+if(xp>=500) return "Silver I";
+if(xp>=250) return "Bronze III";
+if(xp>=100) return "Bronze II";
+return "Bronze I";
+}
+
+/* ---------- DUE STATUS ---------- */
+function getDueStatus(date){
+if(!date) return "";
+
+let d = new Date(date);
+let today = new Date();
+let diff = Math.ceil((d-today)/(1000*60*60*24));
+
+if(diff < 0) return "overdue";
+if(diff === 0) return "today";
+if(diff === 1) return "tomorrow";
+return "";
+}
+
+/* ---------- AUTO DELETE COMPLETED AFTER 1 DAY ---------- */
+function cleanTasks(){
+let now = Date.now();
+
+tasks = tasks.filter(t=>{
+if(!t.done) return true;
+
+if(!t.doneAt) return true;
+
+return (now - t.doneAt) < 86400000; // 24 hours
+});
+}
+
+/* ---------- ADD TASK ---------- */
+function addTask(){
+
+let task = document.getElementById("task").value;
+let date = document.getElementById("date").value;
+let priority = document.getElementById("priority").value;
+
+if(!task) return;
+
+tasks.push({
+text:task,
+date:date,
+priority:priority,
+done:false,
+doneAt:null
+});
+
+save();
+
+document.getElementById("task").value="";
+document.getElementById("date").value="";
+document.getElementById("priority").value="low";
+}
+
+/* ---------- COMPLETE TASK ---------- */
+function completeTask(i){
+
+if(!tasks[i].done){
+
+let bonus = 50;
+
+if(tasks[i].priority==="high") bonus+=25;
+
+let status = getDueStatus(tasks[i].date);
+
+if(status==="today") bonus+=10;
+if(status==="tomorrow") bonus+=25;
+if(status==="overdue") bonus=0;
+
+xp += bonus;
+
+tasks[i].done = true;
+tasks[i].doneAt = Date.now();
+}
+
+save();
+}
+
+/* ---------- DELETE ---------- */
+function deleteTask(i){
+tasks.splice(i,1);
+save();
+}
+
+/* ---------- UI ---------- */
+function updateUI(){
+
+cleanTasks();
+
+document.getElementById("xp").innerText = xp;
+document.getElementById("rank").innerText = "Rank: " + getRank(xp);
+
+/* XP BAR */
+let rankList=[100,250,500,800,1200,1700,2300,3000,4000,5500,7000,9000,12000,16000,22000];
+
+let nextRank=22000;
+for(let r of rankList){
+if(xp<r){
+nextRank=r;
+break;
+}
+}
+
+let percent = (xp/nextRank)*100;
+if(xp>=22000) percent=100;
+
+let bar = document.getElementById("xpfill");
+bar.style.width = percent + "%";
+
+/* 🔥 GLOW WHEN CLOSE TO NEXT RANK */
+let glowZone = nextRank - 300;
+
+if(xp >= glowZone && xp < nextRank){
+document.querySelector(".xpbar").classList.add("glow");
+}else{
+document.querySelector(".xpbar").classList.remove("glow");
+}
+
+/* TASK LIST */
+let html="";
+
+tasks.forEach((t,i)=>{
+
+let status = getDueStatus(t.date);
+
+html += `
+<div class="assignment">
+
+<h3>${t.text}</h3>
+
+<p>📅 ${t.date || "No date"}</p>
+
+<p class="badge ${t.priority}">
+${t.priority.toUpperCase()}
+</p>
+
+<p class="${status}">
+${status ? status.toUpperCase() : ""}
+</p>
+
+<button onclick="completeTask(${i})">
+${t.done ? "Completed" : "Complete"}
+</button>
+
+<button onclick="deleteTask(${i})">Delete</button>
+
+</div>
+`;
+
+});
+
+document.getElementById("list").innerHTML = html;
+}
+
+updateUI();
+
+</script>
+
+</body>
+</html>
